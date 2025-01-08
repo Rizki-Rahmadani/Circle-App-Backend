@@ -97,12 +97,33 @@ export async function updateProfile(req: Request, res: Response) {
       return res.status(404).json({ message: 'User not found' });
     }
 
+    // Check if the username already exists
+    if (username) {
+      const usernameExists = await prisma.user.findUnique({
+        where: { username },
+      });
+
+      if (usernameExists && usernameExists.id !== userId) {
+        return res.status(400).json({ message: 'Username already taken' });
+      }
+    }
+
     // Update user information
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
         username: username || userExists.username,
         fullname: fullname || userExists.fullname,
+      },
+      include: {
+        followers: true,
+        following: true,
+        _count: {
+          select: {
+            followers: true,
+            following: true,
+          },
+        },
       },
     });
 
@@ -147,10 +168,12 @@ export async function updateProfile(req: Request, res: Response) {
     res.status(200).json({
       message: 'Profile updated successfully',
       data: {
-        updatedUser,
+        updatedUser: {
+          ...updatedUser,
+          followersCount,
+          followingCount,
+        },
         updatedProfile,
-        followersCount,
-        followingCount,
       },
     });
   } catch (error) {

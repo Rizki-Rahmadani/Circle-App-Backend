@@ -202,6 +202,10 @@ export async function deleteReply(req: Request, res: Response) {
       },
     });
 
+    console.log('Type of reply.authorId:', typeof reply.authorId);
+    console.log('Type of thread.authorId:', typeof thread?.authorId);
+    console.log('Type of userId:', typeof userId);
+
     res.status(200).json({ message: 'Reply deleted successfully' });
   } catch (error) {
     console.error('Error deleting reply:', error);
