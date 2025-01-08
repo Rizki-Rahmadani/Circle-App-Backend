@@ -1,0 +1,94 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Thread {
+  id  Int @id @default(autoincrement())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  content String?
+  author  User  @relation(fields: [authorId], references: [id])
+  authorId  Int
+  image String? //optional
+  likes  UserLike[]
+  repliesCount  Int @default(0)
+  replies Reply[]
+  isDeleted Int @default(0)
+}
+
+model Profile {
+  id        Int      @id @default(autoincrement())
+  bio       String?  // Bio pengguna, opsional
+  avatarUrl String?  // URL avatar pengguna, opsional
+  backgroundUrl String?
+  userId    Int      @unique // Setiap user hanya memiliki satu profil
+  user      User     @relation(fields: [userId], references: [id]) // Relasi dengan User
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+}
+
+model User {
+  id  Int @id @default(autoincrement())
+  email String  @unique
+  username  String @unique
+  fullname String?
+  password String
+  threads Thread[]
+  likes UserLike[]
+  replies Reply[]
+  followers   FollowUser[] @relation("FollowerRelation")
+  following   FollowUser[] @relation("FollowingRelation")
+  isDeleted Int @default(0)
+  profile Profile?   // Relasi one-to-one dengan Profile
+}
+
+  model UserLike {
+    id        Int    @id @default(autoincrement())
+    userId    Int
+    threadId  Int?
+    replyId   Int? // Menambahkan relasi untuk reply
+    createdAt DateTime @default(now())
+
+    user      User   @relation(fields: [userId], references: [id])
+    thread    Thread? @relation(fields: [threadId], references: [id])
+    reply     Reply?  @relation(fields: [replyId], references: [id])
+
+    @@unique([userId, threadId, replyId]) // Memastikan user hanya bisa like 1 kali untuk thread atau reply
+  }
+
+model FollowUser {
+  id        Int      @id @default(autoincrement())
+  followerId Int      // ID pengguna yang mengikuti
+  followingId Int      // ID pengguna yang diikuti
+  createdAt DateTime @default(now())
+
+  follower User @relation("FollowingRelation", fields: [followerId], references: [id])
+  following User @relation("FollowerRelation", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId]) // Menghindari duplikasi follow
+}
+
+model Reply {
+  id        Int      @id @default(autoincrement())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now())
+  comment   String
+  thread    Thread   @relation(fields: [threadId], references: [id])
+  threadId  Int
+  author    User     @relation(fields: [authorId], references: [id])
+  authorId  Int
+  image     String?
+
+  UserLike UserLike[]
+}
