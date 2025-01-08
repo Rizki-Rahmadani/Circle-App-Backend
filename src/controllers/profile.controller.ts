@@ -55,7 +55,7 @@ export async function updateProfile(req: Request, res: Response) {
   let avatarPath: string | null = null;
   let backgroundPath: string | null = null;
 
-  // Handle avatar image upload (jika ada file dengan fieldname 'avatar')
+  // Handle avatar image upload
   if (req.files && (req.files as any).avatar) {
     const avatarFile = (req.files as any).avatar[0];
     try {
@@ -71,7 +71,7 @@ export async function updateProfile(req: Request, res: Response) {
     }
   }
 
-  // Handle background image upload (jika ada file dengan fieldname 'background')
+  // Handle background image upload
   if (req.files && (req.files as any).background) {
     const backgroundFile = (req.files as any).background[0];
     try {
@@ -111,9 +111,11 @@ export async function updateProfile(req: Request, res: Response) {
       where: { userId: userId },
     });
 
+    let updatedProfile;
+
     if (existingProfile) {
       // Update existing profile
-      const updatedProfile = await prisma.profile.update({
+      updatedProfile = await prisma.profile.update({
         where: { userId: userId },
         data: {
           bio: bio || existingProfile.bio,
@@ -121,14 +123,9 @@ export async function updateProfile(req: Request, res: Response) {
           backgroundUrl: backgroundPath || existingProfile.backgroundUrl,
         },
       });
-
-      res.status(200).json({
-        message: 'Profile updated successfully',
-        data: { updatedUser, updatedProfile },
-      });
     } else {
       // Create a new profile if it doesn't exist
-      const newProfile = await prisma.profile.create({
+      updatedProfile = await prisma.profile.create({
         data: {
           bio: bio || '',
           avatarUrl: avatarPath || null,
@@ -136,12 +133,26 @@ export async function updateProfile(req: Request, res: Response) {
           userId: userId,
         },
       });
-
-      res.status(201).json({
-        message: 'Profile created successfully',
-        data: { updatedUser, newProfile },
-      });
     }
+
+    // Count followers and following
+    const followersCount = await prisma.followUser.count({
+      where: { followingId: userId },
+    });
+
+    const followingCount = await prisma.followUser.count({
+      where: { followerId: userId },
+    });
+
+    res.status(200).json({
+      message: 'Profile updated successfully',
+      data: {
+        updatedUser,
+        updatedProfile,
+        followersCount,
+        followingCount,
+      },
+    });
   } catch (error) {
     console.error('Error updating profile:', error);
     return res.status(500).json({ message: 'Error updating profile', error });

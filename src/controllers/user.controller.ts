@@ -149,19 +149,42 @@ export async function getCurrentUser(req: Request, res: Response) {
   const userId = (req as any).user.id;
 
   try {
-    // Mengambil data user beserta profilnya
     const user = await prisma.user.findUnique({
       where: { id: userId },
       include: {
-        profile: true, // Include profile untuk mengambil bio dan avatarUrl
+        profile: true,
         followers: {
-          select: {
-            followerId: true,
+          include: {
+            follower: {
+              // Mendapatkan detail follower dari relasi
+              select: {
+                id: true,
+                username: true,
+                fullname: true,
+                profile: {
+                  select: {
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
           },
         },
         following: {
-          select: {
-            followingId: true,
+          include: {
+            following: {
+              // Mendapatkan detail following dari relasi
+              select: {
+                id: true,
+                username: true,
+                fullname: true,
+                profile: {
+                  select: {
+                    avatarUrl: true,
+                  },
+                },
+              },
+            },
           },
         },
         _count: {
@@ -177,22 +200,35 @@ export async function getCurrentUser(req: Request, res: Response) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Mengambil data dari model profile
+    // Map data followers dan following agar sesuai dengan format yang diinginkan
+    const followers = user.followers.map((followerRel) => ({
+      id: followerRel.follower.id,
+      username: followerRel.follower.username,
+      fullname: followerRel.follower.fullname,
+      avatarUrl: followerRel.follower.profile?.avatarUrl || '',
+    }));
+
+    const following = user.following.map((followingRel) => ({
+      id: followingRel.following.id,
+      username: followingRel.following.username,
+      fullname: followingRel.following.fullname,
+      avatarUrl: followingRel.following.profile?.avatarUrl || '',
+    }));
+
     const { profile } = user;
-    const bio = profile?.bio || ''; // Default empty string jika bio tidak ada
-    const avatarUrl = profile?.avatarUrl || ''; // Default empty string jika avatarUrl tidak ada
-    const backgroundUrl = profile?.backgroundUrl || '';
 
     res.status(200).json({
       id: user.id,
       email: user.email,
       username: user.username,
       fullname: user.fullname,
-      bio: bio,
-      avatarUrl: avatarUrl,
-      backgroundUrl: backgroundUrl,
+      bio: profile?.bio || '',
+      avatarUrl: profile?.avatarUrl || '',
+      backgroundUrl: profile?.backgroundUrl || '',
       followersCount: user._count.followers,
       followingCount: user._count.following,
+      followers, // Kirim daftar detail followers
+      following, // Kirim daftar detail following
     });
   } catch (error) {
     console.error(error);
@@ -324,6 +360,7 @@ export async function getUserById(req: Request, res: Response) {
       username: user.username,
       fullname: user.fullname,
       profile: {
+        backgroundUrl: profile?.backgroundUrl || '',
         avatarUrl: profile?.avatarUrl || '',
         bio: profile?.bio || '',
       },

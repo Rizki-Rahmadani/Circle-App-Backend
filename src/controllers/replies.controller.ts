@@ -140,25 +140,71 @@ export async function deleteReply(req: Request, res: Response) {
   const userId = (req as any).user.id;
 
   try {
-    const replyExist = await prisma.reply.findUnique({
-      where: { id: parseInt(replyId) },
+    // Check if the reply exists
+    const reply = await prisma.reply.findUnique({
+      where: {
+        id: parseInt(replyId),
+      },
+      select: {
+        id: true,
+        authorId: true,
+        threadId: true,
+        image: true, // Include image URL to delete from Cloudinary
+      },
     });
-    if (!replyExist) {
+
+    if (!reply) {
       return res.status(404).json({ message: 'Reply not found' });
     }
 
-    if (replyExist.authorId !== userId) {
-      return res
-        .status(401)
-        .json({ message: 'User not granted to delete this reply' });
-    }
-
-    await prisma.reply.delete({
-      where: { id: parseInt(replyId) },
+    // Check if the current user is the owner of the thread
+    const thread = await prisma.thread.findUnique({
+      where: {
+        id: reply.threadId,
+      },
+      select: {
+        authorId: true,
+      },
     });
 
-    res.status(200).json({ message: 'Reply deleted' });
+    if (!thread) {
+      return res.status(404).json({ message: 'Thread not found' });
+    }
+
+    // Ensure the user is either the owner of the thread or the reply
+    if (reply.authorId !== userId && thread.authorId !== userId) {
+      return res
+        .status(403)
+        .json({ message: 'You are not authorized to delete this reply' });
+    }
+
+    // Delete the image from Cloudinary if it exists
+    if (reply.image) {
+      try {
+        // Extract public_id from the image URL
+        const publicId = reply.image.split('/').pop()?.split('.')[0]; // Assumes format: https://.../folder/filename.extension
+        if (publicId) {
+          await cloudinary.uploader.destroy(`replies/${publicId}`);
+        }
+      } catch (cloudinaryError) {
+        console.error('Error deleting image from Cloudinary:', cloudinaryError);
+        return res.status(500).json({
+          message: 'Failed to delete image from Cloudinary',
+          error: cloudinaryError,
+        });
+      }
+    }
+
+    // Delete the reply from the database
+    await prisma.reply.delete({
+      where: {
+        id: parseInt(replyId),
+      },
+    });
+
+    res.status(200).json({ message: 'Reply deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Error deleting reply' });
+    console.error('Error deleting reply:', error);
+    res.status(500).json({ message: 'Error deleting reply', error });
   }
 }

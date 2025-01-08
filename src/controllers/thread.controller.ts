@@ -138,6 +138,7 @@ export async function getThreadByUser(req: Request, res: Response) {
             profile: {
               select: {
                 avatarUrl: true,
+                backgroundUrl: true,
               },
             },
           },
@@ -312,6 +313,7 @@ export async function getAllThreadByAuthorId(req: Request, res: Response) {
             profile: {
               select: {
                 avatarUrl: true,
+                backgroundUrl: true,
               },
             },
           },
