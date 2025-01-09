@@ -4,8 +4,8 @@ import { Request, Response } from 'express';
 const prisma = new PrismaClient();
 
 export const toggleFollow = async (req: Request, res: Response) => {
-  const { targetUserId } = req.body; // ID pengguna yang ingin di-follow/unfollow
-  const userId = (req as any).user.id; // ID pengguna yang login (diambil dari token autentikasi)
+  const { targetUserId } = req.body;
+  const userId = (req as any).user.id;
 
   try {
     // Validasi input
@@ -26,7 +26,6 @@ export const toggleFollow = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Gunakan transaksi untuk toggle follow
     const result = await prisma.$transaction(async (prisma) => {
       const existingFollow = await prisma.followUser.findFirst({
         where: {
@@ -78,7 +77,7 @@ export const toggleFollow = async (req: Request, res: Response) => {
 };
 
 export const getFollowedUsers = async (req: Request, res: Response) => {
-  const userId = (req as any).user.id; // Get the logged-in user's ID from the token
+  const userId = (req as any).user.id;
 
   try {
     const followedUsers = await prisma.followUser.findMany({
@@ -86,7 +85,7 @@ export const getFollowedUsers = async (req: Request, res: Response) => {
       include: {
         following: {
           include: {
-            profile: true, // Include profile to get the avatar
+            profile: true,
           },
         },
       },
@@ -94,7 +93,7 @@ export const getFollowedUsers = async (req: Request, res: Response) => {
 
     const followedUserData = followedUsers.map((follow) => ({
       ...follow.following,
-      avatarUrl: follow.following.profile?.avatarUrl, // Get avatar from profile
+      avatarUrl: follow.following.profile?.avatarUrl,
     }));
 
     return res.status(200).json(followedUserData);

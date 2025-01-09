@@ -227,8 +227,8 @@ export async function getCurrentUser(req: Request, res: Response) {
       backgroundUrl: profile?.backgroundUrl || '',
       followersCount: user._count.followers,
       followingCount: user._count.following,
-      followers, // Kirim daftar detail followers
-      following, // Kirim daftar detail following
+      followers,
+      following,
     });
   } catch (error) {
     console.error(error);
